@@ -14,6 +14,7 @@ namespace Laba5_SPOLKS_Client
         private readonly string _remoteIp;
 
         private IPAddress _ipAddress;
+        private IPEndPoint _ipEndPoint;
         private FileStream _fileStream;
 
         public FileSender(string remoteIp)
@@ -23,15 +24,26 @@ namespace Laba5_SPOLKS_Client
             _remoteIp = remoteIp;
         }
 
-        public int SendFile(string filePath)
+        public int SendFile(string filePath, string ipAddress)
         {
+            try
+            {
+                _ipAddress = IPAddress.Parse(ipAddress);
+                _ipEndPoint = new IPEndPoint(_ipAddress, 11000);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+                return -1;
+            }
+
             if (File.Exists(filePath))
             {
                 _fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
                 SendFileDetails();
             }
             else
-            {
+            {                
                 return -1;
             }
 
@@ -40,22 +52,36 @@ namespace Laba5_SPOLKS_Client
 
         private int SendFileDetails()
         {
-            try 
-	        {	        
-		        _ipAddress = IPAddress.Parse(_remoteIp);
-	        }
-	        catch (Exception e)
-	        {
-		        Console.WriteLine(e.Message);
-                return -1;
-	        }
-
             _fileDetails.FileLength = _fileStream.Length;
             _fileDetails.FileName = _fileStream.Name;
 
+            MemoryStream memoryStream = new MemoryStream();
             XmlSerializer fileDetailsSerializer = new XmlSerializer(typeof(FileDetails));
+            fileDetailsSerializer.Serialize(memoryStream, _fileDetails);
 
-            //MemoryStream
+            memoryStream.Position = 0;
+            var fileDetailsArray = new byte[memoryStream.Length];
+            var readBytesAmount = memoryStream.Read(fileDetailsArray, 0, fileDetailsArray.Length);
+
+            try
+            {
+                _udpFileClient.Connect(_ipEndPoint);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+                return -1;
+            }
+
+            if (_udpFileClient.ActiveRemoteHost)
+            {
+                var sendBytes = _udpFileClient.Send(fileDetailsArray, fileDetailsArray.Length); 
+            }
+            else
+            {
+                return -1;
+            }
+
             return 0;
         }
     }
