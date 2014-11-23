@@ -9,7 +9,9 @@ namespace Laba5_SPOLKS_Client
 {
     public class FileSender
     {
-        private readonly UdpFileClient _udpFileClient;
+        private readonly UdpFileClient _udpFileSender;
+        private readonly UdpFileClient _udpFileReceiver;
+
         private readonly FileDetails _fileDetails;
         private readonly string _remoteIp;
 
@@ -19,9 +21,9 @@ namespace Laba5_SPOLKS_Client
 
         public FileSender()
         {
-            _udpFileClient = new UdpFileClient();
+            _udpFileSender = new UdpFileClient();
+            _udpFileReceiver = new UdpFileClient(5000);
             _fileDetails = new FileDetails();
-            //_remoteIp = remoteIp;
         }
 
         public int SendFile(string filePath, string ipAddress)
@@ -33,24 +35,24 @@ namespace Laba5_SPOLKS_Client
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.Message);               
+                Console.WriteLine(e.Message);
                 return -1;
             }
 
             if (File.Exists(filePath))
             {
-              _fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
-              var result = SendFileDetails();
+                _fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+                var result = SendFileDetails();
 
-              //SendFileData(filePath);
+                SendFileData(filePath);
 
-              if (result == -1)
-	          {
-		        return -1;
-	          }
+                if (result == -1)
+                {
+                    return -1;
+                }
             }
             else
-            {                
+            {
                 return -1;
             }
 
@@ -60,7 +62,7 @@ namespace Laba5_SPOLKS_Client
         private int SendFileDetails()
         {
             _fileDetails.FileLength = _fileStream.Length;
-            _fileDetails.FileName = _fileStream.Name;
+            _fileDetails.FileName = _fileStream.Name.Remove(0, _fileStream.Name.LastIndexOf('\\') + 1);
 
             MemoryStream memoryStream = new MemoryStream();
             XmlSerializer fileDetailsSerializer = new XmlSerializer(typeof(FileDetails));
@@ -68,11 +70,13 @@ namespace Laba5_SPOLKS_Client
 
             memoryStream.Position = 0;
             var fileDetailsArray = new byte[memoryStream.Length];
-            var readBytesAmount = memoryStream.Read(fileDetailsArray, 0, fileDetailsArray.Length);
+            var readBytesAmount = memoryStream.Read(fileDetailsArray, 0, Convert.ToInt32(memoryStream.Length));
+
+            memoryStream.Dispose();
 
             try
             {
-                _udpFileClient.Connect(_ipEndPoint);
+                _udpFileSender.Connect(_ipEndPoint);
             }
             catch (Exception e)
             {
@@ -80,13 +84,13 @@ namespace Laba5_SPOLKS_Client
                 return -1;
             }
 
-            if (_udpFileClient.ActiveRemoteHost)
+            if (_udpFileSender.ActiveRemoteHost)
             {
-                var sendBytes = _udpFileClient.Send(fileDetailsArray, fileDetailsArray.Length); 
+                var sendBytes = _udpFileSender.Send(fileDetailsArray, fileDetailsArray.Length);
             }
             else
             {
-                _udpFileClient.Close();
+                _udpFileSender.Close();
                 return -1;
             }
 
@@ -102,7 +106,7 @@ namespace Laba5_SPOLKS_Client
 
             try
             {
-                _udpFileClient.Send(buffer, buffer.Length, _ipEndPoint);
+                _udpFileSender.Send(buffer, buffer.Length);
             }
             catch (Exception e)
             {
@@ -112,7 +116,7 @@ namespace Laba5_SPOLKS_Client
             finally
             {
                 _fileStream.Close();
-                _udpFileClient.Close();
+                _udpFileSender.Close();
             }
 
             return result;

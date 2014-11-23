@@ -10,10 +10,11 @@ namespace Laba5_SPOLKS_Client
         static void Main(string[] args)
         {
             FileSender fileSender = new FileSender();
-            const string remoteIp = "192.168.0.103";
+            const string remoteIp = "192.168.0.104";
 
             try
             {
+                Console.Write("File name: ");
                 string filePath = Console.ReadLine();
                 var result = fileSender.SendFile(filePath, remoteIp);
 
