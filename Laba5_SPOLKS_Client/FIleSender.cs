@@ -17,11 +17,11 @@ namespace Laba5_SPOLKS_Client
         private IPEndPoint _ipEndPoint;
         private FileStream _fileStream;
 
-        public FileSender(string remoteIp)
+        public FileSender()
         {
             _udpFileClient = new UdpFileClient();
             _fileDetails = new FileDetails();
-            _remoteIp = remoteIp;
+            //_remoteIp = remoteIp;
         }
 
         public int SendFile(string filePath, string ipAddress)
@@ -33,14 +33,21 @@ namespace Laba5_SPOLKS_Client
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.Message);
+                Console.WriteLine(e.Message);               
                 return -1;
             }
 
             if (File.Exists(filePath))
             {
-                _fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
-                SendFileDetails();
+              _fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+              var result = SendFileDetails();
+
+              //SendFileData(filePath);
+
+              if (result == -1)
+	          {
+		        return -1;
+	          }
             }
             else
             {                
@@ -79,10 +86,36 @@ namespace Laba5_SPOLKS_Client
             }
             else
             {
+                _udpFileClient.Close();
                 return -1;
             }
 
             return 0;
+        }
+
+        private int SendFileData(string filePath)
+        {
+            var buffer = new byte[_fileStream.Length];
+            var amountReadBytes = _fileStream.Read(buffer, 0, buffer.Length);
+
+            int result = 0;
+
+            try
+            {
+                _udpFileClient.Send(buffer, buffer.Length, _ipEndPoint);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+                result = -1;
+            }
+            finally
+            {
+                _fileStream.Close();
+                _udpFileClient.Close();
+            }
+
+            return result;
         }
     }
 }
