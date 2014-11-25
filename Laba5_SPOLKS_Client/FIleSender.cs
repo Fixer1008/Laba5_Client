@@ -9,6 +9,8 @@ namespace Laba5_SPOLKS_Client
 {
     public class FileSender
     {
+        private const int Size = 8192;
+
         private readonly UdpFileClient _udpFileSender;
         private readonly UdpFileClient _udpFileReceiver;
 
@@ -99,14 +101,40 @@ namespace Laba5_SPOLKS_Client
 
         private int SendFileData(string filePath)
         {
-            var buffer = new byte[_fileStream.Length];
-            var amountReadBytes = _fileStream.Read(buffer, 0, buffer.Length);
-
             int result = 0;
+            int filePointer = 0;
+            IPEndPoint remoteIpEndPoint = null;
+
+            var buffer = new byte[Size];
 
             try
             {
-                _udpFileSender.Send(buffer, buffer.Length);
+                for (_fileStream.Position = 0; _fileStream.Position < _fileDetails.FileLength; )
+                {
+                    int sendBytesAmount = 0;
+
+                    buffer.Initialize();
+                    var amountReadBytes = _fileStream.Read(buffer, 0, buffer.Length);
+
+                    if (amountReadBytes < buffer.Length)
+                    {
+                        var lastFrame = new byte[amountReadBytes];
+                        Array.Copy(buffer, lastFrame, amountReadBytes);
+
+                        sendBytesAmount = _udpFileSender.Send(lastFrame, lastFrame.Length);                        
+                    }
+                    else
+                    {
+                        sendBytesAmount = _udpFileSender.Send(buffer, buffer.Length);
+                    }
+
+                    filePointer += sendBytesAmount;
+                    Console.WriteLine(filePointer);
+
+                    var syncSignal = _udpFileReceiver.Receive(ref remoteIpEndPoint);
+
+                    var syncString = Encoding.UTF8.GetString(syncSignal);
+                }
             }
             catch (Exception e)
             {
@@ -117,6 +145,7 @@ namespace Laba5_SPOLKS_Client
             {
                 _fileStream.Close();
                 _udpFileSender.Close();
+                _udpFileReceiver.Close();
             }
 
             return result;

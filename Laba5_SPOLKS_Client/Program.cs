@@ -12,6 +12,11 @@ namespace Laba5_SPOLKS_Client
             FileSender fileSender = new FileSender();
             const string remoteIp = "192.168.0.104";
 
+            //var addresses = Dns.GetHostAddresses("ALEX-NOTE");
+            //string remoteIp = addresses[1].ToString();
+
+            Console.WriteLine(remoteIp);
+            
             try
             {
                 Console.Write("File name: ");
