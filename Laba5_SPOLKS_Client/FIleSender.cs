@@ -28,6 +28,11 @@ namespace Laba5_SPOLKS_Client
             _fileDetails = new FileDetails();
         }
 
+        void InitializeUdpClients()
+        {
+            _udpFileSender.Client.SendTimeout = _udpFileReceiver.Client.ReceiveTimeout = 10000;
+        }
+
         public int SendFile(string filePath, string ipAddress)
         {
             try
@@ -44,8 +49,10 @@ namespace Laba5_SPOLKS_Client
             if (File.Exists(filePath))
             {
                 _fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
-                var result = SendFileDetails();
 
+                InitializeUdpClients();
+
+                var result = SendFileDetails();
                 SendFileData(filePath);
 
                 if (result == -1)
@@ -132,7 +139,6 @@ namespace Laba5_SPOLKS_Client
                     Console.WriteLine(filePointer);
 
                     var syncSignal = _udpFileReceiver.Receive(ref remoteIpEndPoint);
-
                     var syncString = Encoding.UTF8.GetString(syncSignal);
                 }
             }
