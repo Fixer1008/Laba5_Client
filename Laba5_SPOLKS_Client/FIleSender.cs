@@ -10,12 +10,13 @@ namespace Laba5_SPOLKS_Client
     public class FileSender
     {
         private const int Size = 8192;
+        private const int LocalPort = 5000;
+        private const int RemotePort = 11000;
 
         private readonly UdpFileClient _udpFileSender;
-        private readonly UdpFileClient _udpFileReceiver;
-
         private readonly FileDetails _fileDetails;
-        private readonly string _remoteIp;
+
+        private int connectionFlag = 0;
 
         private IPAddress _ipAddress;
         private IPEndPoint _ipEndPoint;
@@ -23,14 +24,13 @@ namespace Laba5_SPOLKS_Client
 
         public FileSender()
         {
-            _udpFileSender = new UdpFileClient();
-            _udpFileReceiver = new UdpFileClient(5000);
+            _udpFileSender = new UdpFileClient(LocalPort);
             _fileDetails = new FileDetails();
         }
 
         void InitializeUdpClients()
         {
-            _udpFileSender.Client.SendTimeout = _udpFileReceiver.Client.ReceiveTimeout = 10000;
+            _udpFileSender.Client.SendTimeout = _udpFileSender.Client.ReceiveTimeout = 10000;
         }
 
         public int SendFile(string filePath, string ipAddress)
@@ -38,7 +38,7 @@ namespace Laba5_SPOLKS_Client
             try
             {
                 _ipAddress = IPAddress.Parse(ipAddress);
-                _ipEndPoint = new IPEndPoint(_ipAddress, 11000);
+                _ipEndPoint = new IPEndPoint(_ipAddress, RemotePort);
             }
             catch (Exception e)
             {
@@ -86,19 +86,20 @@ namespace Laba5_SPOLKS_Client
             try
             {
                 _udpFileSender.Connect(_ipEndPoint);
+
+                if (_udpFileSender.ActiveRemoteHost)
+                {
+                    var sendBytes = _udpFileSender.Send(fileDetailsArray, fileDetailsArray.Length);
+                }
+                else
+                {
+                    _udpFileSender.Close();
+                    return -1;
+                }
             }
             catch (Exception e)
             {
                 Console.WriteLine(e.Message);
-                return -1;
-            }
-
-            if (_udpFileSender.ActiveRemoteHost)
-            {
-                var sendBytes = _udpFileSender.Send(fileDetailsArray, fileDetailsArray.Length);
-            }
-            else
-            {
                 _udpFileSender.Close();
                 return -1;
             }
@@ -116,30 +117,73 @@ namespace Laba5_SPOLKS_Client
 
             try
             {
-                for (_fileStream.Position = 0; _fileStream.Position < _fileDetails.FileLength; )
+                _udpFileSender.Connect(_ipEndPoint);
+
+                if (_udpFileSender.ActiveRemoteHost)
                 {
-                    int sendBytesAmount = 0;
-
-                    buffer.Initialize();
-                    var amountReadBytes = _fileStream.Read(buffer, 0, buffer.Length);
-
-                    if (amountReadBytes < buffer.Length)
+                    for (_fileStream.Position = 0; _fileStream.Position < _fileDetails.FileLength; )
                     {
-                        var lastFrame = new byte[amountReadBytes];
-                        Array.Copy(buffer, lastFrame, amountReadBytes);
+                        int sendBytesAmount = 0;
 
-                        sendBytesAmount = _udpFileSender.Send(lastFrame, lastFrame.Length);                        
-                    }
-                    else
-                    {
-                        sendBytesAmount = _udpFileSender.Send(buffer, buffer.Length);
-                    }
+                        buffer.Initialize();
+                        var amountReadBytes = _fileStream.Read(buffer, 0, buffer.Length);
 
-                    filePointer += sendBytesAmount;
-                    Console.WriteLine(filePointer);
+                        try
+                        {
+                            if (amountReadBytes < buffer.Length)
+                            {
+                                var lastFrame = new byte[amountReadBytes];
+                                Array.Copy(buffer, lastFrame, amountReadBytes);
 
-                    var syncSignal = _udpFileReceiver.Receive(ref remoteIpEndPoint);
-                    var syncString = Encoding.UTF8.GetString(syncSignal);
+                                sendBytesAmount = _udpFileSender.Send(lastFrame, lastFrame.Length);
+                            }
+                            else
+                            {
+                                sendBytesAmount = _udpFileSender.Send(buffer, buffer.Length);
+                            }
+
+                            filePointer += sendBytesAmount;
+                            Console.WriteLine(filePointer);
+
+                            var syncSignal = _udpFileSender.Receive(ref remoteIpEndPoint);
+                            var syncString = Encoding.UTF8.GetString(syncSignal);
+                            Console.WriteLine(syncString);
+                        }
+                        catch (SocketException e)
+                        {
+                            if (e.SocketErrorCode == SocketError.TimedOut && connectionFlag < 3)
+                            {
+                                _udpFileSender.Connect(_ipEndPoint);
+
+                                if (_udpFileSender.ActiveRemoteHost)
+                                {
+                                    if (filePointer < _fileStream.Position)
+                                    {
+                                        _fileStream.Position -= buffer.Length;
+                                    }
+
+                                    connectionFlag = 0;
+                                }
+                                else
+                                {
+                                    connectionFlag++;
+                                }
+
+                                continue;
+                            }
+                            else
+                            {
+                                _fileStream.Close();
+                                _udpFileSender.Close();
+                                return -1;
+                            }
+                        }
+                    } 
+                }
+                else
+                {
+                    _udpFileSender.Close();
+                    return -1;
                 }
             }
             catch (Exception e)
@@ -151,7 +195,6 @@ namespace Laba5_SPOLKS_Client
             {
                 _fileStream.Close();
                 _udpFileSender.Close();
-                _udpFileReceiver.Close();
             }
 
             return result;

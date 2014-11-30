@@ -15,7 +15,7 @@ namespace Laba5_SPOLKS_Client
             //var addresses = Dns.GetHostAddresses("ALEX-NOTE");
             //string remoteIp = addresses[1].ToString();
 
-            Console.WriteLine(remoteIp);
+            //Console.WriteLine(remoteIp);
             
             try
             {
