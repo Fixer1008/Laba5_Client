@@ -78,7 +78,7 @@ namespace Laba5_SPOLKS_Client
             fileDetailsSerializer.Serialize(memoryStream, _fileDetails);
 
             memoryStream.Position = 0;
-            var fileDetailsArray = new byte[memoryStream.Length];
+            var fileDetailsArray = new byte[Size];
             var readBytesAmount = memoryStream.Read(fileDetailsArray, 0, Convert.ToInt32(memoryStream.Length));
 
             memoryStream.Dispose();
