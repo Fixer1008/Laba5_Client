@@ -22,6 +22,8 @@ namespace Laba5_SPOLKS_Client
         private IPEndPoint _ipEndPoint;
         private FileStream _fileStream;
 
+        private IPEndPoint remoteIpEndPoint = null;
+
         public FileSender()
         {
             _udpFileSender = new UdpFileClient(LocalPort);
@@ -90,6 +92,7 @@ namespace Laba5_SPOLKS_Client
                 if (_udpFileSender.ActiveRemoteHost)
                 {
                     var sendBytes = _udpFileSender.Send(fileDetailsArray, fileDetailsArray.Length);
+                    GetSynchronizeSignal();
                 }
                 else
                 {
@@ -111,8 +114,6 @@ namespace Laba5_SPOLKS_Client
         {
             int result = 0;
             int filePointer = 0;
-            IPEndPoint remoteIpEndPoint = null;
-
             var buffer = new byte[Size];
 
             try
@@ -145,9 +146,7 @@ namespace Laba5_SPOLKS_Client
                             filePointer += sendBytesAmount;
                             Console.WriteLine(filePointer);
 
-                            var syncSignal = _udpFileSender.Receive(ref remoteIpEndPoint);
-                            var syncString = Encoding.UTF8.GetString(syncSignal);
-                            Console.WriteLine(syncString);
+                            GetSynchronizeSignal();
                         }
                         catch (SocketException e)
                         {
@@ -198,6 +197,13 @@ namespace Laba5_SPOLKS_Client
             }
 
             return result;
+        }
+
+        private void GetSynchronizeSignal()
+        {
+          var syncSignal = _udpFileSender.Receive(ref remoteIpEndPoint);
+          var syncString = Encoding.UTF8.GetString(syncSignal);
+          Console.WriteLine(syncString);
         }
     }
 }
