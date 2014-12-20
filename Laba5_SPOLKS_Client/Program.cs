@@ -8,20 +8,20 @@ namespace Laba5_SPOLKS_Client
     class Program
     {
         static void Main(string[] args)
-        {
-            FileSender fileSender = new FileSender();
-            const string remoteIp = "192.168.0.104";
-
-            //var addresses = Dns.GetHostAddresses("ALEX-NOTE");
-            //string remoteIp = addresses[1].ToString();
-
-            //Console.WriteLine(remoteIp);
-            
+        {            
             try
             {
+                Console.Write("Local port: ");
+                string localPort = Console.ReadLine();
+
                 Console.Write("File name: ");
                 string filePath = Console.ReadLine();
-                var result = fileSender.SendFile(filePath, remoteIp);
+
+                Console.Write("Server IP: ");
+                string remoteIp = Console.ReadLine();
+
+                FileSender fileSender = new FileSender();
+                var result = fileSender.SendFile(filePath, remoteIp, localPort);
 
                 if (result == -1)
                 {
